@@ -3,9 +3,9 @@
 ## Vserion: libvips 7.42
 ### Usage
 > #### cd SIMD_vips/libvips
-> ### ./configure --prefix=(your install path) CFLAGS="-O2 -mavx2 -g -mfma"
+> #### ./configure --prefix=(your install path) CFLAGS="-O2 -mavx2 -g -mfma"
 > #### make -j 8
-> ### make install
+> #### make install
 > #### cd (your install path)
 > #### ./vips im_conv ../testin.jpg ../testedge.jpg ../mask
 > Output example :

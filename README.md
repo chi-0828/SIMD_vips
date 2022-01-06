@@ -2,8 +2,10 @@
 ## Rewrite CON_INT function in "libvips\libvips\convolution\im_conv"to build SIMD-version convolution
 ### Usage
 > #### cd SIMD_vips/libvips
+> ### ./configure --prefix=(your install path) CFLAGS="-O2 -mavx2 -g -mfma"
 > #### make -j 8
-> #### cd ../bin
+> ### make install
+> #### cd ../bin (your install path)
 > #### ./vips im_conv ../testin.jpg ../testedge.jpg ../mask
 > Output example :
 > ![image](https://user-images.githubusercontent.com/73067915/148349452-8d31c379-066a-4955-9976-2be20735f3b3.png)

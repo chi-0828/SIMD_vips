@@ -660,7 +660,7 @@ conv_start( IMAGE *out, void *a, void *b )
 		q[x] = sum;  \
 	}  \
 } 
-#define OMP #pragma omp parallel for num_threads(16)
+
 #define conv( TYPE, IM_CLIP ){ \
 	TYPE ** restrict p = (TYPE **) seq->pts; \
 	TYPE * restrict q = (TYPE *) IM_REGION_ADDR( or, le, y ); \

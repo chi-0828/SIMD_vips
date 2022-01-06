@@ -647,9 +647,11 @@ conv_start( IMAGE *out, void *a, void *b )
  		\
 		sum = 0; \
 		i = 0; \
+		/** This is a duff's device .Equal to below code
+		for(i=0; i<conv->nnz; i++) 
+			INNER;
+							2022-01-06 by gary. **/\
 		IM_UNROLL( conv->nnz, INNER ); \
- 		\
-		/*printf("%d \n",sum);getchar();*/\
 		\
 		sum = ((sum + rounding) / mask->scale) + mask->offset; \
  		\
@@ -662,14 +664,10 @@ conv_start( IMAGE *out, void *a, void *b )
 #define conv( TYPE, IM_CLIP ){ \
 	TYPE ** restrict p = (TYPE **) seq->pts; \
 	TYPE * restrict q = (TYPE *) IM_REGION_ADDR( or, le, y ); \
-	int chunk = 8; \
-    int block = conv->nnz/chunk; \
-    int reserve = conv->nnz%chunk; \
-	/*#pragma omp parallel for num_threads(16)*/\
-	/*_Pragma("omp parallel for num_threads(16)")*/\
+	int chunk = 16; \
+    int block = conv->nnz>>4; \
+    int reserve = conv->nnz&15; \
 	for(x = 0; x < sz; x ++){ \
-        /*int16_t p_column[] = (int16_t*)malloc(conv->nnz * sizeof(int16_t));\
-		int16_t *t2 = (int16_t*)malloc(conv->nnz * sizeof(int16_t));*/\
 		int16_t p_column[conv->nnz];\
 		int16_t t2 [conv->nnz];\
         for(int i=0; i<conv->nnz; i++){\
@@ -678,29 +676,34 @@ conv_start( IMAGE *out, void *a, void *b )
         }\
         __m128i sse_load ;\
         __m128i sse_sum ;\
-		__m256i sum256; \
+		__m256i sum256,sum256_2; \
         __m128i *sse_p = (__m128i*) p_column;\
         __m128i *sse_t2 = (__m128i*) t2;\
         /* convoluion */\
         register int sum = 0;\
-        for(int i = 0; i < block; i ++){\
-            sse_sum = _mm_load_si128((sse_p + (i) + 0));\
-            sse_load = _mm_load_si128((sse_t2 + (i) + 0));\
-			\
+        int sum = 0;\
+        int ii = block;\
+        while(ii--){\
+            sse_load = _mm_load_si128((sse_p + (ii<<1) + 0));\
+            sse_sum = _mm_load_si128((sse_t2 + (ii<<1) + 0));\
             sse_sum = _mm_mullo_epi16 (sse_sum, sse_load);\
-            sum256 =  _mm256_cvtepi16_epi32 (sse_sum);\
-			\
+            sum256 =  _mm256_cvtepu16_epi32 (sse_sum);\
             sum256 = _mm256_hadd_epi32(sum256, sum256);\
             sum256 = _mm256_hadd_epi32(sum256, sum256);\
+            sse_load = _mm_load_si128((sse_p + (ii<<1) + 1));\
+            sse_sum = _mm_load_si128((sse_t2 + (ii<<1) + 1));\
+            sse_sum = _mm_mullo_epi16 (sse_sum, sse_load);\
+            sum256_2 =  _mm256_cvtepu16_epi32 (sse_sum);\
+            sum256_2 = _mm256_hadd_epi32(sum256_2, sum256_2);\
+            sum256_2 = _mm256_hadd_epi32(sum256_2, sum256_2);\
+            sum256 = _mm256_add_epi32(sum256, sum256_2);\
             sum += _mm256_extract_epi32(sum256,0);\
             sum += _mm256_extract_epi32(sum256,4);\
-		}\
-		\
-        for(int i = 0; i < reserve; i ++){ \
-            sum += t[block*chunk+i] * p_column[block*chunk+i]; \
-        } \
-		/*free(p_column); \
-		free(t2); */\
+        }\
+        ii = reserve;\
+        while(ii--){\
+            sum += t2[block*chunk+ii] * p_column[block*chunk+ii];\
+        }\
 		\
 		\
 		sum = ((sum + rounding) / mask->scale) + mask->offset; \
